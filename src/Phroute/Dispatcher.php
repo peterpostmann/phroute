@@ -63,7 +63,7 @@ class Dispatcher {
         
         $response = call_user_func_array($resolvedHandler, $vars);
 
-        return $this->dispatchFilters($afterFilter, $response, $vars);
+        return $this->dispatchAfterFilters($afterFilter, $response, $vars);
     }
     
     /**
