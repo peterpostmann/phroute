@@ -40,40 +40,70 @@ class Dispatcher {
      *
      * @param $httpMethod
      * @param $uri
+     * @param ...$params
      * @return mixed|null
      */
-    public function dispatch($httpMethod, $uri)
+    public function dispatch($httpMethod, $uri, ...$params)
     {
         list($handler, $filters, $vars) = $this->dispatchRoute($httpMethod, trim($uri, '/'));
 
         list($beforeFilter, $afterFilter) = $this->parseFilters($filters);
 
-        if(($response = $this->dispatchFilters($beforeFilter)) !== null)
+        foreach($vars as $key => $var) $vars[$key] = urldecode($var);
+        
+        $vars = array_merge($params, $vars);
+        
+        if(($response = $this->dispatchBevoreFilters($beforeFilter, $vars)) !== null)
         {
             return $response;
         }
         
         $resolvedHandler = $this->handlerResolver->resolve($handler);
         
+        
         $response = call_user_func_array($resolvedHandler, $vars);
 
-        return $this->dispatchFilters($afterFilter, $response);
+        return $this->dispatchFilters($afterFilter, $response, $vars);
     }
-
+    
     /**
-     * Dispatch a route filter.
+     * Dispatch a bevor route filter  
      *
      * @param $filters
      * @param null $response
      * @return mixed|null
      */
-    private function dispatchFilters($filters, $response = null)
-    {
+    private function dispatchBevoreFilters($filters, $vars)
+    {        
         while($filter = array_shift($filters))
         {
         	$handler = $this->handlerResolver->resolve($filter);
         	
-            if(($filteredResponse = call_user_func($handler, $response)) !== null)
+            if(($filteredResponse = call_user_func_array($handler, $vars)) !== null)
+            {
+                return $filteredResponse;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Dispatch a after route filter.
+     *
+     * @param $filters
+     * @param null $response
+     * @return mixed|null
+     */
+    private function dispatchAfterFilters($filters, $response=null, $vars=array())
+    {
+        $vars = array_merge(array($response), $vars);   
+        
+        while($filter = array_shift($filters))
+        {
+        	$handler = $this->handlerResolver->resolve($filter);
+        	
+            if(($filteredResponse = call_user_func_array($handler, $vars)) !== null)
             {
                 return $filteredResponse;
             }
